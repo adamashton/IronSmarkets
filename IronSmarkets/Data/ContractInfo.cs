@@ -20,11 +20,12 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System;
 using System.Collections.Generic;
 
 namespace IronSmarkets.Data
 {
-    public class ContractInfo
+    public class ContractInfo : IEquatable<ContractInfo>
     {
         private static readonly IDictionary<Proto.Seto.ContractType, string> TypeStrings =
             new Dictionary<Proto.Seto.ContractType, string> {
@@ -77,22 +78,53 @@ namespace IronSmarkets.Data
                 EntityRelationships.FromEntities(info.Entities));
         }
 
+        /// <summary>
+        /// Determines whether the specified <see cref="System.Object"/> is equal to this instance.
+        /// </summary>
+        /// <param name="obj">The <see cref="System.Object"/> to compare with this instance.</param>
+        /// <returns>
+        /// 	<c>true</c> if the specified <see cref="System.Object"/> is equal to this instance; otherwise, <c>false</c>.
+        /// </returns>
         public override bool Equals(object obj)
         {
             bool result = obj is ContractInfo;
             if (result)
             {
                 ContractInfo other = (ContractInfo)obj;
-                result = this.Uid == other.Uid;
+                result = Equals(other);
             }
             return result;
         }
 
+        /// <summary>
+        /// Returns a hash code for this instance.
+        /// </summary>
+        /// <returns>
+        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+        /// </returns>
         public override int GetHashCode()
         {
             return this.Uid.GetHashCode();
         }
 
+        /// <summary>
+        /// Indicates whether the current object is equal to another object of the same type.
+        /// </summary>
+        /// <returns>
+        /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
+        /// </returns>
+        /// <param name="other">An object to compare with this object.</param>
+        public bool Equals(ContractInfo other)
+        {
+            return this.Uid == other.Uid;
+        }
+
+        /// <summary>
+        /// Returns a <see cref="System.String"/> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String"/> that represents this instance.
+        /// </returns>
         public override string ToString()
         {
             return string.Format("ContractInfo [{0}]: {1}", this.Uid, this.Name);

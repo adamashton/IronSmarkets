@@ -26,7 +26,7 @@ using System.Linq;
 
 namespace IronSmarkets.Data
 {
-    public class EventInfo
+    public class EventInfo : IEquatable<EventInfo>
     {
         private static readonly IDictionary<Proto.Seto.EventCategory, string> CategoryStrings =
             new Dictionary<Proto.Seto.EventCategory, string> {
@@ -156,22 +156,53 @@ namespace IronSmarkets.Data
                 info.Markets.Select(MarketInfo.FromSeto));
         }
 
+        /// <summary>
+        /// Determines whether the specified <see cref="System.Object"/> is equal to this instance.
+        /// </summary>
+        /// <param name="obj">The <see cref="System.Object"/> to compare with this instance.</param>
+        /// <returns>
+        /// 	<c>true</c> if the specified <see cref="System.Object"/> is equal to this instance; otherwise, <c>false</c>.
+        /// </returns>
         public override bool Equals(object obj)
         {
             bool result = obj is EventInfo;
             if (result)
             {
                 EventInfo other = (EventInfo)obj;
-                result = this.Uid == other.Uid;
+                result = Equals(other);
             }
             return result;
         }
 
+        /// <summary>
+        /// Returns a hash code for this instance.
+        /// </summary>
+        /// <returns>
+        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+        /// </returns>
         public override int GetHashCode()
         {
             return this.Uid.GetHashCode();
         }
 
+        /// <summary>
+        /// Indicates whether the current object is equal to another object of the same type.
+        /// </summary>
+        /// <returns>
+        /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
+        /// </returns>
+        /// <param name="other">An object to compare with this object.</param>
+        public bool Equals(EventInfo other)
+        {
+            return this.Uid == other.Uid;
+        }
+
+        /// <summary>
+        /// Returns a <see cref="System.String"/> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String"/> that represents this instance.
+        /// </returns>
         public override string ToString()
         {
             return string.Format("EventInfo [{0}]: {1}", this.Uid, this.Name);

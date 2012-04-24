@@ -121,11 +121,9 @@ namespace IronSmarkets.Data
             return !left.Equals(right);
         }
 
-        public static Price FromDecimal(decimal odds)
+        public static Price FromDecimal(decimal odds, bool roundToNearest = false)
         {
-            return new Price(
-                PriceType.PercentOdds,
-                EuropeanTable.DecimalToRaw(odds));
+            return new Price(PriceType.PercentOdds, EuropeanTable.DecimalToRaw(odds, roundToNearest));
         }
 
         public static IEnumerable<decimal> ValidDecimals
@@ -246,24 +244,87 @@ namespace IronSmarkets.Data
 
         public static decimal RawToDecimal(uint raw)
         {
-            decimal odds;
-            if (Odds.TryGetValue(raw, out odds))
-                return odds;
-            return Math.Round(10000m / raw, 4);
+            decimal result;
+            if (!Odds.TryGetValue(raw, out result))
+            {
+                result = Math.Round(10000m / raw, 4);
+                Debug.Assert(Odds[result] == raw);
+            }
+            return result;
         }
 
+        /// <summary>Calculate the raw price value from a decimal value. Does not attempt to round to the nearest price.</summary>
         public static uint DecimalToRaw(decimal odds)
         {
-            uint raw;
-            if (Odds.TryGetValue(odds, out raw))
-                return raw;
+            return DecimalToRaw(odds, false);
+        }
 
-            // This is an annoying precision issue within the exchange
-            // which matches orders with an implied percentage value
-            // instead of directly using European decimal odds. It
-            // only rears its ugly head at the "high" end of the odds
-            // spectrum.
-            throw new ArgumentException("Unsupported value", "odds");
+        /// <summary>Calculate the raw price value from a decimal value.</summary>
+        public static uint DecimalToRaw(decimal odds, bool roundToNearest)
+        {
+            uint result;
+            if (!Odds.TryGetValue(odds, out result))
+            {
+                if (!roundToNearest)
+                {
+                    // This is an annoying precision issue within the exchange
+                    // which matches orders with an implied percentage value
+                    // instead of directly using European decimal odds. It
+                    // only rears its ugly head at the "high" end of the odds
+                    // spectrum.
+                    throw new ArgumentException("Unsupported value", "odds");
+                }
+                else
+                {
+                    result = FindNearestRaw(odds);
+                    Debug.Assert(Odds[result] == odds);
+                }
+            }
+            
+            
+            return result;
+        }
+
+        private static uint FindNearestRaw(decimal oddsDec)
+        {
+            uint result;
+            if (oddsDec <= 1.0001m)
+            {
+                result = 9999;
+            }
+            else if (oddsDec >= 10000M)
+            {
+                result = 1;
+            }
+            else
+            {
+                uint previous = 1;
+                uint current = 2;
+                foreach (KeyValuePair<decimal, uint> decToRaw in Odds.OrderBy(x => x.Value))
+                {
+                    if (RawToDecimal(current) >= oddsDec)
+                        break;
+
+                    previous = current;
+                    current = decToRaw.Value;
+                }
+
+                decimal previousDec = RawToDecimal(previous);
+                decimal currentDec = RawToDecimal(current);
+                Debug.Assert(previousDec < oddsDec && currentDec >= oddsDec);
+
+                // which is the closest?
+                decimal deltaToPrev = oddsDec - previousDec;
+                decimal deltaToCur = currentDec - oddsDec;
+
+                result = previous;
+                if (deltaToCur < deltaToPrev)
+                {
+                    result = current;
+                }
+            }
+
+            return result;
         }
     }
 }
