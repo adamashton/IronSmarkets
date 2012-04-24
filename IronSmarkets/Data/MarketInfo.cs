@@ -35,7 +35,7 @@ namespace IronSmarkets.Data
         private readonly DateTime? _startDateTime;
         private readonly DateTime? _endDateTime;
         private readonly IEnumerable<KeyValuePair<Uid, string>> _entities;
-        private readonly IEnumerable<Uid> _contracts;
+        private readonly IEnumerable<ContractInfo> _contracts;
 
         public Uid Uid { get { return _uid; } }
         public string Slug { get { return _slug; } }
@@ -44,7 +44,7 @@ namespace IronSmarkets.Data
         public DateTime? StartDateTime { get { return _startDateTime; } }
         public DateTime? EndDateTime { get { return _endDateTime; } }
         public IEnumerable<KeyValuePair<Uid, string>> Entities { get { return _entities; } }
-        public IEnumerable<Uid> Contracts { get { return _contracts; } }
+        public IEnumerable<ContractInfo> Contracts { get { return _contracts; } }
 
         private MarketInfo(
             Uid uid,
@@ -54,7 +54,7 @@ namespace IronSmarkets.Data
             DateTime? startDateTime,
             DateTime? endDateTime,
             IEnumerable<KeyValuePair<Uid, string>> entities,
-            IEnumerable<Uid> contracts)
+            IEnumerable<ContractInfo> contracts)
         {
             _uid = uid;
             _slug = slug;
@@ -76,7 +76,7 @@ namespace IronSmarkets.Data
                 SetoMap.FromDateTime(info.StartDate, info.StartTime),
                 SetoMap.FromDateTime(info.EndDate, info.EndTime),
                 EntityRelationships.FromEntities(info.Entities),
-                from c in info.Contracts select Uid.FromUuid128(c.Contract));
+                info.Contracts.Select(ContractInfo.FromSeto));
         }
     }
 }
