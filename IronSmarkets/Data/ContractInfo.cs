@@ -76,5 +76,26 @@ namespace IronSmarkets.Data
                 info.Shortname,
                 EntityRelationships.FromEntities(info.Entities));
         }
+
+        public override bool Equals(object obj)
+        {
+            bool result = obj is ContractInfo;
+            if (result)
+            {
+                ContractInfo other = (ContractInfo)obj;
+                result = this.Uid == other.Uid;
+            }
+            return result;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Uid.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return string.Format("ContractInfo [{0}]: {1}", this.Uid, this.Name);
+        }
     }
 }

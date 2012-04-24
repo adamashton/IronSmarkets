@@ -78,5 +78,26 @@ namespace IronSmarkets.Data
                 EntityRelationships.FromEntities(info.Entities),
                 info.Contracts.Select(ContractInfo.FromSeto));
         }
+
+        public override bool Equals(object obj)
+        {
+            bool result = obj is MarketInfo;
+            if (result)
+            {
+                MarketInfo other = (MarketInfo)obj;
+                result = this.Uid == other.Uid;
+            }
+            return result;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Uid.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return string.Format("MarketInfo [{0}]: {1}", this.Uid, this.Name);
+        }
     }
 }
