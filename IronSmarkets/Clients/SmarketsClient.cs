@@ -115,7 +115,7 @@ namespace IronSmarkets.Clients
             _marketQuotesRequestHandler = new MarketQuotesRequestHandler(this);
             _ordersForAccountRequestHandler = new OrdersForAccountRequestHandler(this, _orderMap);
             _ordersForMarketRequestHandler = new OrdersForMarketRequestHandler(this, _orderMap);
-            _orderCreateRequestHandler = new OrderCreateRequestHandler(this);
+            _orderCreateRequestHandler = new OrderCreateRequestHandler(this, _orderMap);
         }
 
         public static ISmarketsClient Create(
@@ -521,6 +521,21 @@ namespace IronSmarkets.Clients
                 case PS.PayloadType.PAYLOADORDERREJECTED:
                 case PS.PayloadType.PAYLOADORDERINVALID:
                     _orderCreateRequestHandler.Handle(payload);
+                    break;
+                case PS.PayloadType.PAYLOADORDEREXECUTED:
+                    var orderUid = Uid.FromUuid128(payload.OrderExecuted.Order);
+                    Order order;
+                    if (_orderMap.TryGetValue(orderUid, out order))
+                    {
+                        order.Update(payload.OrderExecuted);
+                    }
+                    break;
+                case PS.PayloadType.PAYLOADORDERCANCELLED:
+                    orderUid = Uid.FromUuid128(payload.OrderCancelled.Order);
+                    if (_orderMap.TryGetValue(orderUid, out order))
+                    {
+                        order.Update(payload.OrderCancelled);
+                    }
                     break;
             }
 
