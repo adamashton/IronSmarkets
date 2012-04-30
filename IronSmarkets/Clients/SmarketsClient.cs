@@ -54,17 +54,17 @@ namespace IronSmarkets.Clients
         IMarketMap MarketMap { get; }
         IContractMap ContractMap { get; }
 
-        Response<IEventMap> GetEvents(EventQuery query);
-        Response<AccountState> GetAccountState();
-        Response<AccountState> GetAccountState(Uid account);
+        IResponse<IEventMap> GetEvents(EventQuery query);
+        IResponse<AccountState> GetAccountState();
+        IResponse<AccountState> GetAccountState(Uid account);
 
-        Response<MarketQuotes> GetQuotesByMarket(Uid market);
+        IResponse<MarketQuotes> GetQuotesByMarket(Uid market);
 
-        Response<IOrderMap> GetOrders();
-        Response<IOrderMap> GetOrdersByMarket(Uid market);
+        IResponse<IOrderMap> GetOrders();
+        IResponse<IOrderMap> GetOrdersByMarket(Uid market);
 
         void CancelOrder(Order order);
-        Response<Order> CreateOrder(NewOrder order);
+        IResponse<Order> CreateOrder(NewOrder order);
     }
 
     public sealed class SmarketsClient : ISmarketsClient
@@ -81,12 +81,12 @@ namespace IronSmarkets.Clients
         private readonly MarketMap _marketMap = new MarketMap();
         private readonly ContractMap _contractMap = new ContractMap();
 
-        private readonly IRpcHandler<PS.Events, IEventMap> _eventsRequestHandler;
-        private readonly IRpcHandler<PS.AccountState, AccountState> _accountStateRequestHandler;
-        private readonly IRpcHandler<PS.MarketQuotes, MarketQuotes> _marketQuotesRequestHandler;
-        private readonly IRpcHandler<PS.OrdersForAccount, IOrderMap> _ordersForAccountRequestHandler;
-        private readonly IRpcHandler<PS.OrdersForMarket, IOrderMap> _ordersForMarketRequestHandler;
-        private readonly IOrderCreateRpcHandler _orderCreateRequestHandler;
+        private readonly IRpcHandler<PS.Events, IEventMap, EventMap> _eventsRequestHandler;
+        private readonly IRpcHandler<PS.AccountState, AccountState, object> _accountStateRequestHandler;
+        private readonly IRpcHandler<PS.MarketQuotes, MarketQuotes, object> _marketQuotesRequestHandler;
+        private readonly IRpcHandler<PS.OrdersForAccount, IOrderMap, OrderMap> _ordersForAccountRequestHandler;
+        private readonly IRpcHandler<PS.OrdersForMarket, IOrderMap, OrderMap> _ordersForMarketRequestHandler;
+        private readonly IRpcHandler<PS.OrderAccepted, Order, Tuple<NewOrder, OrderMap>> _orderCreateRequestHandler;
         private readonly IAsyncHttpFoundHandler<PS.Events> _httpHandler;
 
         private readonly QuoteHandler<PS.MarketQuotes> _marketQuotesHandler = new MarketQuoteHandler();
@@ -110,12 +110,12 @@ namespace IronSmarkets.Clients
             _receiver = new Receiver<PS.Payload>(_session);
             _httpHandler = httpHandler;
 
-            _eventsRequestHandler = new EventsRequestHandler(this, _eventMap, _httpHandler);
+            _eventsRequestHandler = new EventsRequestHandler(this, _httpHandler);
             _accountStateRequestHandler = new AccountStateRequestHandler(this);
             _marketQuotesRequestHandler = new MarketQuotesRequestHandler(this);
-            _ordersForAccountRequestHandler = new OrdersForAccountRequestHandler(this, _orderMap);
-            _ordersForMarketRequestHandler = new OrdersForMarketRequestHandler(this, _orderMap);
-            _orderCreateRequestHandler = new OrderCreateRequestHandler(this, _orderMap);
+            _ordersForAccountRequestHandler = new OrdersForAccountRequestHandler(this);
+            _ordersForMarketRequestHandler = new OrdersForMarketRequestHandler(this);
+            _orderCreateRequestHandler = new OrderCreateRequestHandler(this);
         }
 
         public static ISmarketsClient Create(
@@ -131,7 +131,9 @@ namespace IronSmarkets.Clients
             if (httpHandler == null)
                 httpHandler = new HttpFoundHandler<PS.Events>(
                     settings.HttpRequestTimeout);
-            return new SmarketsClient(settings, session, httpHandler);
+            var client = new SmarketsClient(settings, session, httpHandler);
+            httpHandler.SetClient(client);
+            return client;
         }
 
         public bool IsDisposed
@@ -330,21 +332,21 @@ namespace IronSmarkets.Clients
             return payload.EtoPayload.Seq;
         }
 
-        public Response<IEventMap> GetEvents(EventQuery query)
+        public IResponse<IEventMap> GetEvents(EventQuery query)
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
                     "SmarketsClient",
                     "Called GetEvents on disposed object");
 
-            return _eventsRequestHandler.Request(
+            return _eventsRequestHandler.BeginRequest(
                 new PS.Payload {
                     Type = PS.PayloadType.PAYLOADEVENTSREQUEST,
                         EventsRequest = query.ToEventsRequest()
-                        });
+                }, _eventMap);
         }
 
-        public Response<AccountState> GetAccountState()
+        public IResponse<AccountState> GetAccountState()
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
@@ -354,7 +356,7 @@ namespace IronSmarkets.Clients
             return GetAccountState(new PS.AccountStateRequest());
         }
 
-        public Response<AccountState> GetAccountState(Uid account)
+        public IResponse<AccountState> GetAccountState(Uid account)
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
@@ -367,60 +369,60 @@ namespace IronSmarkets.Clients
                 });
         }
 
-        private Response<AccountState> GetAccountState(
+        private IResponse<AccountState> GetAccountState(
             PS.AccountStateRequest request)
         {
-            return _accountStateRequestHandler.Request(
+            return _accountStateRequestHandler.BeginRequest(
                 new PS.Payload {
                     Type = PS.PayloadType.PAYLOADACCOUNTSTATEREQUEST,
                         AccountStateRequest = request
-                        });
+                }, null);
         }
 
-        public Response<MarketQuotes> GetQuotesByMarket(Uid market)
+        public IResponse<MarketQuotes> GetQuotesByMarket(Uid market)
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
                     "SmarketsClient",
                     "Called GetQuotesByMarket on disposed object");
 
-            return _marketQuotesRequestHandler.Request(
+            return _marketQuotesRequestHandler.BeginRequest(
                 new PS.Payload {
                     Type = PS.PayloadType.PAYLOADMARKETQUOTESREQUEST,
                         MarketQuotesRequest = new PS.MarketQuotesRequest {
                         Market = market.ToUuid128()
                     }
-                });
+                }, null);
         }
 
-        public Response<IOrderMap> GetOrders()
+        public IResponse<IOrderMap> GetOrders()
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
                     "SmarketsClient",
                     "Called GetOrdersByAccount on disposed object");
 
-            return _ordersForAccountRequestHandler.Request(
+            return _ordersForAccountRequestHandler.BeginRequest(
                 new PS.Payload {
                     Type = PS.PayloadType.PAYLOADORDERSFORACCOUNTREQUEST,
                     OrdersForAccountRequest = new PS.OrdersForAccountRequest()
-                });
+                }, _orderMap);
         }
 
-        public Response<IOrderMap> GetOrdersByMarket(Uid market)
+        public IResponse<IOrderMap> GetOrdersByMarket(Uid market)
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
                     "SmarketsClient",
                     "Called GetOrdersByMarket on disposed object");
 
-            return _ordersForMarketRequestHandler.Request(
+            return _ordersForMarketRequestHandler.BeginRequest(
                 new PS.Payload {
                     Type = PS.PayloadType.PAYLOADORDERSFORMARKETREQUEST,
                         OrdersForMarketRequest = new PS.OrdersForMarketRequest {
                         Market = market.ToUuid128()
                     }
-                });
+                }, _orderMap);
         }
 
         public void CancelOrder(Order order)
@@ -444,14 +446,19 @@ namespace IronSmarkets.Clients
                 });
         }
 
-        public Response<Order> CreateOrder(NewOrder order)
+        public IResponse<Order> CreateOrder(NewOrder order)
         {
             if (IsDisposed)
                 throw new ObjectDisposedException(
                     "SmarketsClient",
                     "Called CreateOrder on disposed object");
 
-            return _orderCreateRequestHandler.Request(order);
+            var payload = new PS.Payload {
+                Type = PS.PayloadType.PAYLOADORDERCREATE,
+                OrderCreate = order.ToOrderCreate()
+            };
+
+            return _orderCreateRequestHandler.BeginRequest(payload, new Tuple<NewOrder, OrderMap>(order, _orderMap));
         }
 
         private void OnPayloadReceived(PS.Payload payload)

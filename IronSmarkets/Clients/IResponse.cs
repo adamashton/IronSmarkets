@@ -1,4 +1,4 @@
-// Copyright (c) 2011 Smarkets Limited
+// Copyright (c) 2011-2012 Smarkets Limited
 //
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
@@ -24,13 +24,16 @@ using System;
 
 namespace IronSmarkets.Clients
 {
-    public sealed class Response<T> : Tuple<ulong, T>
+    public interface IResponse<T>
     {
-        public ulong Sequence { get { return Item1; } }
-        public T Data { get { return Item2; } }
+        ulong Sequence { get; }
+        T Data { get; }
 
-        internal Response(ulong sequence, T data) : base(sequence, data)
-        {
-        }
+        // Forward to the WaitHandle
+        bool WaitOne();
+        bool WaitOne(int millisecondsTimeout);
+        bool WaitOne(TimeSpan timeout);
+        bool WaitOne(int millisecondsTimeout, bool exitContext);
+        bool WaitOne(TimeSpan timeout, bool exitContext);
     }
 }
