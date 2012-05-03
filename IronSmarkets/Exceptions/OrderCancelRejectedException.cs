@@ -21,34 +21,45 @@
 // SOFTWARE.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
-namespace IronSmarkets.Clients
+namespace IronSmarkets.Exceptions
 {
-    internal abstract class QueueRpcHandler<TPayload, TResponse, TState> : RpcHandler<TPayload, TResponse, TState>
+    public class OrderCancelRejectedException : Exception
     {
-        private readonly Queue<SyncRequest<TPayload, TResponse, TState>> _requests =
-            new Queue<SyncRequest<TPayload, TResponse, TState>>();
+        private static readonly IDictionary<Proto.Seto.OrderCancelRejectedReason, string> Messages =
+            new Dictionary<Proto.Seto.OrderCancelRejectedReason, string> {
+            { Proto.Seto.OrderCancelRejectedReason.ORDERCANCELREJECTEDNOTFOUND, "Not found" },
+            { Proto.Seto.OrderCancelRejectedReason.ORDERCANCELREJECTEDNOTLIVE, "Not live" }
+        };
 
-        protected QueueRpcHandler(ISmarketsClient client) : base(client)
+        private readonly string _errorMessage;
+
+        public string ErrorMessage { get { return _errorMessage; } }
+
+        private OrderCancelRejectedException(string errorMessage)
         {
+            _errorMessage = errorMessage;
         }
 
-        protected override void AddRequest(Proto.Seto.Payload payload, SyncRequest<TPayload, TResponse, TState> request)
-        {
-            _requests.Enqueue(request);
+        public override string Message {
+            get {
+                return _errorMessage;
+            }
         }
 
-        protected override SyncRequest<TPayload, TResponse, TState> GetRequest(Proto.Seto.Payload payload)
+        public override IDictionary Data {
+            get {
+                return new Dictionary<string, object> {
+                    { "ErrorMessage", ErrorMessage }
+                };
+            }
+        }
+
+        internal static OrderCancelRejectedException FromSeto(Proto.Seto.OrderCancelRejected seto)
         {
-            try
-            {
-                return _requests.Dequeue();
-            }
-            catch (InvalidOperationException)
-            {
-                return null;
-            }
+            return new OrderCancelRejectedException(Messages[seto.Reason]);
         }
     }
 }
