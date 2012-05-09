@@ -134,6 +134,16 @@ namespace IronSmarkets.Data
             }
         }
 
+        public static IEnumerable<uint> ValidBinary
+        {
+            get
+            {
+                return EuropeanTable.Odds.Select(x => x.Value);
+            }
+        }
+
+
+
         internal static PriceType PriceTypeFromSeto(Proto.Seto.PriceType type)
         {
             return PriceTypes[type];
