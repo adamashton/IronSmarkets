@@ -109,6 +109,7 @@
     <Compile Include="Data\Uid.cs" />
     <Compile Include="Events\IPayloadEvents.cs" />
     <Compile Include="Exceptions\ConnectionException.cs" />
+    <Compile Include="Exceptions\InvalidEventQueryException.cs" />
     <Compile Include="Exceptions\InvalidRequestException.cs" />
     <Compile Include="Exceptions\LoginFailedException.cs" />
     <Compile Include="Exceptions\MessageStreamException.cs" />
@@ -117,6 +118,7 @@
     <Compile Include="Exceptions\OrderCancelRejectedException.cs" />
     <Compile Include="Exceptions\OrderInvalidException.cs" />
     <Compile Include="Exceptions\OrderRejectedException.cs" />
+    <Compile Include="Exceptions\ReceiverDeadlockException.cs" />
     <Compile Include="Exceptions\RequestTimedOutException.cs" />
     <Compile Include="Extensions\IDictionary.cs" />
     <Compile Include="Extensions\IEnumerable.cs" />

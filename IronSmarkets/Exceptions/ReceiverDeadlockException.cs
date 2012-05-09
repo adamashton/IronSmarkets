@@ -1,4 +1,4 @@
-// Copyright (c) 2011 Smarkets Limited
+// Copyright (c) 2012 Smarkets Limited
 //
 // Permission is hereby granted, free of charge, to any person
 // obtaining a copy of this software and associated documentation
@@ -23,32 +23,25 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 
 namespace IronSmarkets.Exceptions
 {
     [Serializable]
-    public class OrderInvalidException : Exception
+    public class ReceiverDeadlockException : Exception
     {
-        private static readonly IDictionary<Proto.Seto.OrderInvalidReason, string> Messages =
-            new Dictionary<Proto.Seto.OrderInvalidReason, string> {
-            { Proto.Seto.OrderInvalidReason.ORDERINVALIDINVALIDPRICE, "Invalid price" },
-            { Proto.Seto.OrderInvalidReason.ORDERINVALIDINVALIDQUANTITY, "Invalid quantity" }
-        };
-
         private readonly string _errorMessage;
 
         public string ErrorMessage { get { return _errorMessage; } }
 
         [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
-        protected OrderInvalidException(SerializationInfo info, StreamingContext ctxt) : base(info, ctxt)
+        protected ReceiverDeadlockException(SerializationInfo info, StreamingContext ctxt) : base(info, ctxt)
         {
             _errorMessage = info.GetString("ErrorMessage");
         }
 
-        internal OrderInvalidException(string errorMessage)
+        public ReceiverDeadlockException(string errorMessage)
         {
             _errorMessage = errorMessage;
         }
@@ -65,12 +58,6 @@ namespace IronSmarkets.Exceptions
                     { "ErrorMessage", ErrorMessage }
                 };
             }
-        }
-
-        internal static OrderInvalidException FromSeto(Proto.Seto.OrderInvalid seto)
-        {
-            var msg = String.Join(", ", seto.Reasons.Select(x => Messages[x]));
-            return new OrderInvalidException(msg);
         }
 
         [SecurityPermissionAttribute(SecurityAction.Demand, SerializationFormatter = true)]

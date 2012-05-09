@@ -27,6 +27,7 @@ using System.Threading;
 
 using IronSmarkets.Clients;
 using IronSmarkets.Data;
+using IronSmarkets.Exceptions;
 using IronSmarkets.Messages;
 using IronSmarkets.Sessions;
 using IronSmarkets.Sockets;
@@ -215,6 +216,70 @@ namespace IronSmarkets.Tests
                 Assert.Equal(mockOrderCancelResponse1.Data, OrderCancelledReason.MemberRequested);
                 Assert.Equal(mockOrderCancelResponse2.Data, OrderCancelledReason.MemberRequested);
                 client.Logout();
+            }
+        }
+
+        [Fact]
+        public void ReceiverDeadlockTest()
+        {
+            var socket = new MockSessionSocket();
+            socket.Expect(Payloads.Sequenced(Payloads.Login("mockuser", "mockpassword"), 1));
+            socket.Next(Payloads.Sequenced(Payloads.LoginResponse("00000000-0000-0000-0000-000000658a8", 2), 1));
+            socket.Expect(Payloads.Sequenced(Payloads.Ping(), 2));
+            socket.Next(Payloads.Sequenced(Payloads.Pong(), 2));
+            socket.Expect(Payloads.Sequenced(Payloads.Ping(), 3));
+
+            var session = new SeqSession(socket, SessionSettings);
+            IClientSettings mockSettings = new ClientSettings(SocketSettings, SessionSettings);
+            ManualResetEvent waiter = new ManualResetEvent(false);
+            using (var client = SmarketsClient.Create(mockSettings, session))
+            {
+                client.Login();
+                client.AddPayloadHandler(
+                    (payload) => {
+                        Assert.Throws<ReceiverDeadlockException>(() => client.Ping());
+                        waiter.Set();
+                        return true;
+                    });
+                client.Ping();
+                waiter.WaitOne();
+            }
+        }
+
+        [Fact]
+        public void AsynchronousCancels()
+        {
+            var socket = new MockSessionSocket();
+            var mockMarketUid = new Uid(317002);
+            var mockContractUid = new Uid(608008);
+            var mockOrder = new NewOrder {
+                Type = OrderCreateType.Limit,
+                Market = mockMarketUid,
+                Contract = mockContractUid,
+                Side = Side.Buy,
+                Quantity = new Quantity(QuantityType.PayoffCurrency, 60000),
+                Price = new Price(PriceType.PercentOdds, 5714)
+            };
+
+            socket.Expect(Payloads.Sequenced(Payloads.Login("mockuser", "mockpassword"), 1));
+            socket.Next(Payloads.Sequenced(Payloads.LoginResponse("00000000-0000-0000-0000-000000658a8", 2), 1));
+            socket.Expect(Payloads.Sequenced(Payloads.OrderCreate(mockOrder), 2));
+            socket.Next(Payloads.Sequenced(Payloads.OrderAccepted(new Uid(82892989397900053), 2), 2));
+            socket.Next(Payloads.Sequenced(Payloads.OrderCancelled(new Uid(82892989397900053)), 3));
+            socket.Expect(Payloads.Sequenced(Payloads.Logout(), 3));
+            socket.Next(Payloads.Sequenced(Payloads.LogoutConfirmation(), 4));
+
+            var session = new SeqSession(socket, SessionSettings);
+            IClientSettings mockSettings = new ClientSettings(SocketSettings, SessionSettings);
+
+            using (var client = SmarketsClient.Create(mockSettings, session))
+            {
+                client.Login();
+                var mockOrderResponse1 = client.CreateOrder(mockOrder);
+                Assert.True(mockOrderResponse1.WaitOne(DataWait));
+                Assert.NotNull(mockOrderResponse1.Data);
+                client.Logout();
+                Assert.Equal(mockOrderResponse1.Data.State.Status, OrderStatus.Cancelled);
             }
         }
     }
