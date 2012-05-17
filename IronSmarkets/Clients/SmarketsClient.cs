@@ -51,6 +51,8 @@ namespace IronSmarkets.Clients
 
         ulong Ping();
 
+        string SessionId { get; }
+
         IEventMap EventMap { get; }
         IOrderMap OrderMap { get; }
         IMarketMap MarketMap { get; }
@@ -325,6 +327,11 @@ namespace IronSmarkets.Clients
             var payload = Payloads.Ping();
             SendPayload(payload);
             return payload.EtoPayload.Seq;
+        }
+
+        public string SessionId
+        {
+            get { return this._session.SessionId; }
         }
 
         public ulong SubscribeMarket(Uid market)
