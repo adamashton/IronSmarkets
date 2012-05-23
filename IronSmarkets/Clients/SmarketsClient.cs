@@ -44,7 +44,6 @@ namespace IronSmarkets.Clients
         IPayloadEndpoint<PS.Payload>,
         IQuoteSink
     {
-        string SessionId { get; }
         bool IsDisposed { get; }
 
         ulong Login();
@@ -338,11 +337,6 @@ namespace IronSmarkets.Clients
             var payload = Payloads.Ping();
             SendPayload(payload);
             return payload.EtoPayload.Seq;
-        }
-
-        public string SessionId
-        {
-            get { return this._session.SessionId; }
         }
 
         public ulong SubscribeMarket(Uid market)
